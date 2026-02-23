@@ -1,4 +1,4 @@
-#include "src/MCMC_struct.hpp"
+#include "MCMC_struct.hpp"
 #include <armadillo>
 #include <math.h>
 #include <vector>

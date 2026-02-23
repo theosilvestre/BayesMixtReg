@@ -1,7 +1,7 @@
 #ifndef GENLINMOD
 #define GENLINMOD
 
-#include "src/MCMC_struct.hpp"
+#include "MCMC_struct.hpp"
 #include <RcppArmadillo.h>
 #include <math.h>
 #include <vector>
