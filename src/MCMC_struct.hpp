@@ -1,7 +1,7 @@
 #ifndef MCMC_STRUCT
 #define MCMC_STRUCT
 
-#include <data_algo.hpp>
+#include <src/data_algo.hpp>
 #include <armadillo>
 #include <math.h>
 #include <vector>

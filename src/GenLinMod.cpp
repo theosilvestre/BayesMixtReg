@@ -1,4 +1,4 @@
-#include "GenLinMod.hpp"
+#include "src/GenLinMod.hpp"
 #include <RcppArmadillo.h>
 #include <math.h>
 #include <vector>

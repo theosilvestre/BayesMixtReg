@@ -1,7 +1,7 @@
 #ifndef EM_STRUCT
 #define EM_STRUCT
 
-#include "MCMC_struct.hpp"
+#include "src/MCMC_struct.hpp"
 #include <armadillo>
 #include <math.h>
 #include <vector>
