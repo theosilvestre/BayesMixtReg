@@ -1,12 +1,10 @@
 #ifndef DATA_ALGO
 #define DATA_ALGO
 
-#include <RcppArmadillo.h>
+#include <armadillo>
 #include <vector>
 #include <iostream>
 #include <thread>
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp17)]]
 
 //////////////////////////////////// Types ///////////////////////////////////
 using voxVec = std::vector<arma::vec>;
@@ -23,12 +21,13 @@ template<class T>
 const int genericSize(const std::vector<arma::Mat<T>>& vecMat,const int index=0){ return arma::size(vecMat[0])(index); }
 
 /////////////////////////////////// Classes ////////////////////////////////// 
-template<class DataTemplate,class AlgoTemplate,class ModelTemplate>
+template<class DataTmp,class AlgoTmp>
 struct Base
 {
-  DataTemplate data;
-  AlgoTemplate algo;
-  ModelTemplate model;
+  DataTmp data;
+  AlgoTmp algo;
+  
+  explicit Base(const DataTmp& _data,const AlgoTmp& _algo) : data(_data), algo(_algo) {}
 };
 
 ///////////////////////////////////// Data /////////////////////////////////// 
@@ -45,13 +44,6 @@ struct Data_template
     y(y),X(X),n(n),p(p),params(params) {}
 };
 
-/*struct DataDose : Data_template<double,arma::vec,double>
-{
-  const int V;
-  
-  explicit DataDose(const arma::vec& X) : Data_template(X,genericSize(X)); 
-};
-*/
 struct Data : Data_template<arma::vec,arma::mat,arma::vec>
 {
   explicit Data(const arma::vec& y=arma::vec(),const arma::mat& X=arma::mat(),const arma::vec& params=arma::vec()) : 
@@ -70,7 +62,7 @@ struct DataVox : Data_template<voxVec,voxMat,voxVec>
 struct Algo_template
 {
   const int N = 1;              //algo iteration number
-  const int ite = 0; //to keep trace of iterations
+  int ite = 0; //to keep trace of iterations
   const unsigned int nbThreads = std::thread::hardware_concurrency()-2;
   
   explicit Algo_template(const int N) : N(N) {
@@ -92,9 +84,9 @@ struct Algo_MCMC_template : Algo_template
   const double warmup;      //warmup iteration number
   const double invTemp = 0;
   const int tau;  //how many time MH is repeated with the same variance to calculate the ratio of acceptation
-  T logDens;
-  T logDensCarre;
-  T dens;
+  std::vector<T> logDens;
+  std::vector<T> logDensCarre;
+  std::vector<T> dens;
   std::vector<double> S;
   
   explicit Algo_MCMC_template(const int N,const int nbAdaptMarche=1,const double& warmup=0,const double& invTemp = 1,const int tau = 100) : 
@@ -109,9 +101,52 @@ struct Algo_MCMC_template : Algo_template
   }
 };
 
-using AlgoMCMC = Algo_MCMC_template<std::vector<arma::vec>>;
-using AlgoMCMCVox = Algo_MCMC_template<std::vector<std::vector<arma::vec>>>;
-using AlgoMCMCIndVox = Algo_MCMC_template<std::vector<std::vector<std::vector<arma::vec>>>>;
+using AlgoMCMC = Algo_MCMC_template<arma::vec>;
+using AlgoMCMCVox = Algo_MCMC_template<std::vector<arma::vec>>;
+using AlgoMCMCIndVox = Algo_MCMC_template<std::vector<std::vector<arma::vec>>>;
+
+///////////////////////////////////// Priors ///////////////////////////////////
+struct VecMat
+{
+  const arma::vec vec;
+  const arma::mat mat;
+  explicit VecMat(const arma::vec& vec) : vec(vec), mat(arma::mat()) {}
+  explicit VecMat(const arma::mat& mat) : vec(arma::vec()), mat(mat) {}
+};
+
+template<class T>
+struct Prior
+{
+  const T params;
+  
+  explicit Prior(const T& params) : params(params) {}
+};
+
+struct NormalPrior : Prior<std::vector<double>>
+{
+  explicit NormalPrior(const double& mu, const double& sig2) : Prior({mu,sig2,1/sig2}) {}
+  template<class T>
+  void logRatioDensity(T& obj){
+    obj.logRatio += -0.5*params[2]*( pow(obj.cand,2)-pow(obj.curr,2) + 2*params[0]*(obj.curr-obj.cand) )  ;
+  }
+};
+
+struct MultivariateNormalPrior : Prior<std::vector<VecMat>>
+{
+  explicit MultivariateNormalPrior(const arma::vec& mu, const arma::mat& Sig2) : Prior({VecMat(mu),VecMat(Sig2),VecMat(arma::mat(arma::inv(Sig2)))}) // inv(Sig2) is not of class mat, so the mat constructor of VecMat cannot directly be called, a mat object can be constructed with the result of inv(Sig2)
+  {
+    if(arma::size(params[0].vec)(0) != arma::size(params[1].mat)(0))throw std::invalid_argument("Prior: incompatible matrix dimensions: "+std::to_string(arma::size(params[0].vec)(0))+"x"+std::to_string(arma::size(params[0].vec)(1))+" and "+std::to_string(arma::size(params[1].mat)(0))+"x"+std::to_string(arma::size(params[1].mat)(1)));
+  }
+  template<class T>
+  void logRatioDensity(T& obj){
+    obj.logRatio += arma::as_scalar( -0.5*( arma::trans(obj.cand-params[0].vec)*params[2].mat*(obj.cand-params[0].vec) - arma::trans(obj.curr-params[0].vec)*params[2].mat*(obj.curr-params[0].vec) ) );
+  }
+};
+
+struct SymDirichletPrior : Prior<double>
+{
+  explicit SymDirichletPrior(const double& alpha) : Prior({alpha}) {}
+};
 
 
 #endif

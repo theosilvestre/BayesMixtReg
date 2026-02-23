@@ -7,19 +7,17 @@
 #include <vector>
 #include <iostream>
 #include <thread>
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp17)]]
 
 ////////////////////////// Prototypes and Templates ////////////////////////// 
 template<class T>
 const arma::Col<T> initRes(const T& curr,const int N){ 
-	return arma::zeros<T>(N); 
+	return arma::zeros<arma::Col<T>>(N); 
 }
 template<class T>
 const arma::Mat<T> initRes(const arma::Col<T>& curr,const int N){   //res is either a vector or a matrix
 	int nbValCurr = arma::size(curr)(0);
-  if(nbValCurr <= 10000) return arma::zeros<T>(nbValCurr,N); //res is a matrix - need to restrict the size
-  else return arma::zeros<T>(nbValCurr,1);                  //if there are two many variables to stock, we opt for stocking statistics like sum or mean values.
+  if(nbValCurr <= 10000) return arma::zeros<arma::Mat<T>>(nbValCurr,N); //res is a matrix - need to restrict the size
+  else return arma::zeros<arma::Mat<T>>(nbValCurr,1);                  //if there are two many variables to stock, we opt for stocking statistics like sum or mean values.
 }
 template<class T>
 const std::vector<arma::Mat<T>> initRes(const arma::Mat<T>& curr,const int N){
@@ -56,8 +54,8 @@ struct MCMC
 {
 	T curr;  //current value : could be either vec of double or vec of int (classes)
 	U res;
-  template<class AlgoTemplate>
-	explicit MCMC(const AlgoTemplate& algo,const T& curr) :
+  template<class AlgoTmp>
+	explicit MCMC(const AlgoTmp& algo,const T& curr) :
 		curr(curr),res(initRes(curr,algo.N)) {}
 };
 
@@ -75,8 +73,8 @@ template<class T,class U,class V>
 struct Gibbs : MCMC<T,U>
 {
   V params;
-  template<class AlgoTemplate>
-  explicit Gibbs(const AlgoTemplate& algo,const T& curr,const V& params) :
+  template<class AlgoTmp>
+  explicit Gibbs(const AlgoTmp& algo,const T& curr,const V& params) :
   	MCMC<T,U>(algo,curr), params(params) {}
 };
 
@@ -98,42 +96,48 @@ void RWMHCore(T& obj)
   }
 }
 
-template<class T,class U,class V,class W>
+template<class T,class U,class V,class W,std::array<double,2>  bdsTmp,class PropTmp,class RatioTmp,class P>
 struct RWMH : MCMC<T,U>
 {
   T cand;  //candidate value : could be either vec of double or int (classes)
   V sig;  //random walk variance-covariance matrix : could be either a matrix or a single double
+  P prior;
   T driftCurr; //random walk drift : for current value
   T driftCand; //                    for candidate value
-  std::vector<double> bounds = {0.22,0.24}; //acceptation-rejection boundaries
+  std::array<double,2> bounds = bdsTmp; 
   double prop = 0;  //acceptance rate
-  double ratio = 0; //Metropolis-Hastings ratio of acceptance
+  double logRatio = 0; //Metropolis-Hastings ratio of acceptance
   W tempCurr; //stocks temporary values to be used throughout iterations
   W tempCand; //stocks temporary values to be used throughout iterations
   int accepted=0;
-  // int numCoeff=0;
   // int numInd=0;
 
-  template<class DataTemp,class AlgoTemplate>
-  explicit RWMH(const DataTemp& data,const AlgoTemplate& algo,const T& curr,const V& SigMarche) :
-    MCMC<T,U>(algo,curr), cand(curr), sig(SigMarche), driftCurr(curr), driftCand(curr) {}
+  template<class AlgoTmp>
+  explicit RWMH(const AlgoTmp& algo,const T& curr,const V& SigMarch,const P& prior,const W& tempCurr,const W& tempCand) :
+    MCMC<T,U>(algo,curr), cand(curr), sig(SigMarch), prior(prior), driftCurr(curr), driftCand(curr), tempCurr(tempCurr), tempCand(tempCand) {}
+  
+  inline void driftMH() noexcept{ PropTmp::callDrift(*this); }
+  inline void modifDrift(const double& val) noexcept{ PropTmp::callModDrift(*this,val); }
+  inline void proposalMH() noexcept{ PropTmp::callGen(*this); }
+  inline void logRatioProposal() noexcept{ PropTmp::callLogRatioProposal(*this); }
+  template<class DataTmp,class AlgoTmp,typename... Args>
+  inline void logRatioLikelihood(const DataTmp& data,const AlgoTmp& algo,Args& ...args) noexcept{ PropTmp::callLogRatioLikelihood(*this,data,algo,args...); }
 };
 
-template<class T,class U,class V,class W>
-struct MALA : RWMH<T,U,V,W>
+template<class T,class U,class V,class W,class PropTmp,class RatioTmp,class P>
+struct MALA : RWMH<T,U,V,W,{0.56,0.58},PropTmp,RatioTmp,P>
 {
   arma::mat invSig;
   arma::vec gradCurr;
   arma::vec gradCand;
-  std::vector<double> bounds = {0.56,0.58};
   
-  template<class AlgoTemplate>
-  explicit MALA(const Data& data,const AlgoTemplate& algo,const T& curr,const V& SigMarche) :
-    RWMH<T,U,V,W>(data,algo,curr,SigMarche),invSig(createMat(curr)),gradCurr(createVec(curr)),gradCand(reateVec(curr)) {}
+  template<class AlgoTmp>
+  explicit MALA(const AlgoTmp& algo,const T& curr,const V& SigMarch) :
+    RWMH<T,U,V,W,{0.56,0.58},PropTmp,RatioTmp,P>(algo,curr,SigMarch),invSig(createMat(curr)),gradCurr(createVec(curr)),gradCand(reateVec(curr)) {}
 };
 
-template<class T,class U,class V,class W>
-struct MMALA : MALA<T,U,V,W>
+template<class T,class U,class V,class W,class PropTmp,class RatioTmp,class P>
+struct MMALA : MALA<T,U,V,W,PropTmp,RatioTmp,P>
 {
   arma::rowvec g1;    //support, no need to track nor update, used inline
   arma::rowvec dg1;   //support, no need to track nor update, used inline
@@ -146,68 +150,88 @@ struct MMALA : MALA<T,U,V,W>
   arma::mat invGcand;
   
   //set the size of the object according to the size the matrix X and the number of iterations N
-  template<class AlgoTemplate>
-  explicit MMALA(const Data& data,const AlgoTemplate& algo,const T& curr,const V& SigMarche) :
-    MALA<T,U,V,W>(data,algo,curr,SigMarche),g1(createRowVec(data.n[0])),dg1(createRowVec(data.n[0])),Gcurr(createMat(curr)),
+  template<class AlgoTmp>
+  explicit MMALA(const Data& data,const AlgoTmp& algo,const T& curr,const V& SigMarch) :
+    MALA<T,U,V,W,PropTmp,RatioTmp,P>(algo,curr,SigMarch),g1(createRowVec(data.n[0])),dg1(createRowVec(data.n[0])),Gcurr(createMat(curr)),
     Gcurr(createMat(curr)),Gcand(createMat(curr)),dGcurr(createCube(curr)),dGcand(createCube(curr)),
     invGcurr(createMat(curr)),invGcand(createMat(curr)),g2(createMat(curr)) {}
 };
 
 //////////////////////// functions using classes //////////////////////// 
-template<class T,class U,class V,class W,class X>
-void driftMH(T& objGen,RWMH<U,V,W,X>& obj){
-  obj.driftCand = obj.cand;
-}
+struct ModifDriftMH
+{
+  template<class T>
+  static inline void callModDrift(T& obj,const double& val){
+    obj.sig = obj.sig*val;  
+  }
+};
+
+struct CandDriftMH {
+  template<class T>
+  static inline void callDrift(T& obj){
+    obj.driftCand = obj.cand;
+  }
+};
+
+struct NormPropMH : CandDriftMH, ModifDriftMH
+{
+  template<class T>
+  static inline void callGen(T& obj){
+    obj.cand = arma::as_scalar( arma::randn(1, arma::distr_param(obj.driftCurr,obj.sig)) );
+  }
+  template<class T>
+  static inline void callLogRatioProposal(T& obj){
+    obj.logRatio += -0.5*( pow(obj.curr-obj.driftCand,2) - pow(obj.cand-obj.driftCurr,2) )/obj.sig; //IN RWMH driftCand=cand and driftCurr=curr
+  }
+};
+struct MultNormPropMH : CandDriftMH, ModifDriftMH
+{
+  template<class T>
+  static inline void callGen(T& obj){
+    obj.cand = arma::mvnrnd(obj.driftCurr,obj.sig,1);
+  }
+  template<class T>
+  static inline void callLogRatioProposal(T& obj){
+    obj.logRatio += -0.5*arma::sum( arma::trans(obj.curr-obj.driftCand)*arma::inv(obj.sig)*(obj.curr-obj.driftCand) - arma::trans(obj.cand-obj.driftCurr)*arma::inv(obj.sig)*(obj.cand-obj.driftCurr) ); //IN RWMH driftCand=cand and driftCurr=curr
+  }
+};
 
 template<class T>
-void majGrad(T& obj) {} 
-
-template<class T,class U,class V,class W>
-void majGrad(struct MALA<T,U,V,W>& obj){ 
-  obj.gradCurr = obj.gradCand;
-}
-
-template<class T>
-void majMH(T& obj){         //RWMH
+void majMH(T& obj)  //RWMH
+{
   obj.curr = obj.cand;
   obj.driftCurr = obj.driftCand;
-  majGrad(obj);
-  obj.prop += 1;//only used duriang the sig adaption phase 
+  obj.prop += 1;//only used for the variance adaption phase 
   obj.tempCurr = obj.tempCand;
 }
 
-template<class T,class U>
-void MHstep(T& objGen,U& obj){
-  proposalMH(obj);
-  driftMH(objGen,obj);
-  ratioMH(objGen,obj); //rapport des proposals egal à 1
+template<class DataTmp,class AlgoTmp,class T,typename... Args>
+void ratioMH(const DataTmp& data,const AlgoTmp& algo,T& obj,Args& ...args){
+  obj.logRatio = 0;   
+  obj.logRatioLikelihood(data,algo,args...); //must be first to compute WBIC
+  obj.prior.logRatioDensity(obj);
+  obj.logRatioProposal();
+}
+
+template<class DataTmp,class AlgoTmp,class T,typename... Args>
+void MHstep(const DataTmp& data,const AlgoTmp& algo,T& obj,Args& ...args){
+  obj.proposalMH();
+  obj.driftMH();
+  ratioMH(data,algo,obj,args...); 
   double tirage = arma::randu();
-  if(obj.ratio > log(tirage)){
+  if(obj.logRatio > log(tirage)){
     obj.accepted = 1;
     majMH(obj);
   }
   else obj.accepted = 0;
 }
 
-template<class T,class U,class V,class W>
-void modifDrift(struct RWMH<T,U,V,W>& obj,const double& val){
-  obj.sig = obj.sig*val;  
-};
-
-template<class T,class U,class V,class W>
-void modifDrift(struct MALA<T,U,V,W>& obj,const double& val){
-  obj.sig = obj.sig*val; 
-  obj.driftCurr = (obj.driftCurr - obj.curr)*val + obj.curr; //sig is changed to the current value
-  obj.driftCurr = obj.curr + 0.5*obj.sig(0,0)*obj.gradCurr;
-  obj.invSig = arma::inv(obj.sig);
-}
-
-template<class T,class U>
-void adaptationStep(T& objGen,U& obj,const int verbose=1){
-  obj.prop /= objGen.algo.tau;
-  if(obj.prop > obj.bounds[1]) modifDrift(obj,1.2); 
-  else if(obj.prop < obj.bounds[0])  modifDrift(obj,0.8);  
-  else modifDrift(obj,1.0);   //in most case: does nothing, for mala: obj.invSig = arma::inv(obj.sig); 
+template<class AlgoTmp,class T>
+void adaptationStep(const AlgoTmp& algo,T& obj,const int verbose=1){
+  obj.prop /= algo.tau;
+  if(obj.prop > obj.bounds[1]) obj.modifDrift(1.2); 
+  else if(obj.prop < obj.bounds[0])  obj.modifDrift(0.8);  
+  else obj.modifDrift(1.0);   //in most case: does nothing, for mala: obj.invSig = arma::inv(obj.sig); 
   if(verbose==1) std::cout<<"prop "<<obj.prop<<" ";
   obj.prop = 0;
 }

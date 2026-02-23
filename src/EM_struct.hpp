@@ -2,14 +2,11 @@
 #define EM_STRUCT
 
 #include "MCMC_struct.hpp"
-#include <RcppArmadillo.h>
-#include <Rcpp.h>
+#include <armadillo>
 #include <math.h>
 #include <vector>
 #include <iostream>
 #include <thread>
-// [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(cpp17)]]
 
 //////////////////////////  Classes  ////////////////////////// 
 template<class V,class W>
