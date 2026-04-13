@@ -5,10 +5,11 @@ Version: 1.0
 Date: 2026-01-30
 Author: Théo Silvestre
 Maintainer: Théo Silvestre <ts.21@hotmail.fr>
-Description: Bayesian miwture of regressions.
-License: GPL (>= 3)
+Description: Bayesian mixture of regressions.
+License: GPL-3 + file LICENSE
 Imports: 
-    Rcpp
+    Rcpp,
+    coda
 LinkingTo: Rcpp, RcppArmadillo
 RoxygenNote: 7.3.3
 SystemRequirements: C++20
