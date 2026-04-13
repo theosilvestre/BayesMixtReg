@@ -9,8 +9,8 @@ logisticRegression(
   data,
   maxBinom = NULL,
   method = "freq",
-  curr = c(),
-  prior = c(),
+  curr = NULL,
+  prior = NULL,
   N = 5000,
   nbAdaptMarche = 100,
   warmup = 0,
@@ -20,9 +20,15 @@ logisticRegression(
 )
 }
 \arguments{
-\item{maxBinom}{a vector of maximum trials (in binomial fashion), length(maxBinom) = length(y)}
+\item{form}{an object of class "formula" (as in "lm" or "glm")}
 
-\item{curr}{a vector of initialization values corresponding to each of the covariates in the columns of X, ordered in the same way}
+\item{data}{a data.frame containing response variables and covariates}
+
+\item{maxBinom}{a vector of maximum trials (in binomial fashion), length(maxBinom) = nrow(data)}
+
+\item{method}{chosen method for the inference : "freq", "RWMH".}
+
+\item{curr}{a vector of initialization values corresponding to each of the covariates in the chosen columns of data, ordered in the same way}
 
 \item{prior}{a list of vectors for the priors' hyperparameters}
 
@@ -32,13 +38,11 @@ logisticRegression(
 
 \item{warmup}{the number of iterations reserved to warmup (warmup >= 0 and warmup <= N)}
 
-\item{SigMarch}{a covariance matrix for the Gaussian proposal distribution}
+\item{epsilon}{the number of iterations reserved to warmup (warmup >= 0 and warmup <= N)}
+
+\item{SigMarch}{a covariance matrix for the Gaussian proposal distribution (potential only a scalar)}
 
 \item{invTemp}{a value to temper the likelihood}
-
-\item{y}{a vector of count values, from 0 to maxBinom[i] for y[i], i in 1...length(y)}
-
-\item{X}{a matrix of covariates, with dim(X)[1] = length(y)}
 }
 \value{
 a list that includes a matrix of each coefficient posterior sample, the adapted covariance matrix for the Gaussian proposal distribution and some values to compute WAIC
