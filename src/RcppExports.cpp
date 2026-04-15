@@ -12,19 +12,19 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // logisticRWMHcond
-Rcpp::List logisticRWMHcond(int N, int nbAdaptMarche, arma::vec y, arma::mat X, arma::vec maxBinom, std::vector<double> curr, std::vector<double> SigMarch, std::vector<std::vector<double>> prior, const int warmup, const double invTemp);
+Rcpp::List logisticRWMHcond(int N, int nbAdaptMarche, Rcpp::NumericVector y, Rcpp::NumericMatrix X, Rcpp::NumericVector maxBinom, std::vector<double> curr, std::vector<double> SigMarch, Rcpp::List prior, const int warmup, const double invTemp);
 RcppExport SEXP _BayesMixtReg_logisticRWMHcond(SEXP NSEXP, SEXP nbAdaptMarcheSEXP, SEXP ySEXP, SEXP XSEXP, SEXP maxBinomSEXP, SEXP currSEXP, SEXP SigMarchSEXP, SEXP priorSEXP, SEXP warmupSEXP, SEXP invTempSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type N(NSEXP);
     Rcpp::traits::input_parameter< int >::type nbAdaptMarche(nbAdaptMarcheSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type maxBinom(maxBinomSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type X(XSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type maxBinom(maxBinomSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type curr(currSEXP);
     Rcpp::traits::input_parameter< std::vector<double> >::type SigMarch(SigMarchSEXP);
-    Rcpp::traits::input_parameter< std::vector<std::vector<double>> >::type prior(priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type prior(priorSEXP);
     Rcpp::traits::input_parameter< const int >::type warmup(warmupSEXP);
     Rcpp::traits::input_parameter< const double >::type invTemp(invTempSEXP);
     rcpp_result_gen = Rcpp::wrap(logisticRWMHcond(N, nbAdaptMarche, y, X, maxBinom, curr, SigMarch, prior, warmup, invTemp));
@@ -32,19 +32,19 @@ BEGIN_RCPP
 END_RCPP
 }
 // logisticRWMHjoint
-Rcpp::List logisticRWMHjoint(int N, int nbAdaptMarche, arma::vec y, arma::mat X, arma::vec maxBinom, arma::vec curr, arma::mat SigMarch, std::vector<arma::vec> prior, const int warmup, const double invTemp);
+Rcpp::List logisticRWMHjoint(int N, int nbAdaptMarche, Rcpp::NumericVector y, Rcpp::NumericMatrix X, Rcpp::NumericVector maxBinom, Rcpp::NumericVector curr, Rcpp::NumericMatrix SigMarch, Rcpp::List prior, const int warmup, const double invTemp);
 RcppExport SEXP _BayesMixtReg_logisticRWMHjoint(SEXP NSEXP, SEXP nbAdaptMarcheSEXP, SEXP ySEXP, SEXP XSEXP, SEXP maxBinomSEXP, SEXP currSEXP, SEXP SigMarchSEXP, SEXP priorSEXP, SEXP warmupSEXP, SEXP invTempSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< int >::type N(NSEXP);
     Rcpp::traits::input_parameter< int >::type nbAdaptMarche(nbAdaptMarcheSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type y(ySEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type X(XSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type maxBinom(maxBinomSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type curr(currSEXP);
-    Rcpp::traits::input_parameter< arma::mat >::type SigMarch(SigMarchSEXP);
-    Rcpp::traits::input_parameter< std::vector<arma::vec> >::type prior(priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type X(XSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type maxBinom(maxBinomSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type curr(currSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type SigMarch(SigMarchSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type prior(priorSEXP);
     Rcpp::traits::input_parameter< const int >::type warmup(warmupSEXP);
     Rcpp::traits::input_parameter< const double >::type invTemp(invTempSEXP);
     rcpp_result_gen = Rcpp::wrap(logisticRWMHjoint(N, nbAdaptMarche, y, X, maxBinom, curr, SigMarch, prior, warmup, invTemp));

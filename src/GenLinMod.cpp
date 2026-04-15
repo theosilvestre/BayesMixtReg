@@ -1,4 +1,4 @@
-#include "GenLinMod.hpp"
+#include "GenLinMod.h"
 #include <RcppArmadillo.h>
 #include <math.h>
 #include <vector>
@@ -22,22 +22,28 @@
 //' @param invTemp a value to temper the likelihood
 //' @return a list that includes a matrix of each coefficient posterior sample and the adapted covariance matrix for the Gaussian proposal distribution
 // [[Rcpp::export(.logisticRWMHcond)]]
-Rcpp::List logisticRWMHcond(int N, int nbAdaptMarche, arma::vec y, arma::mat X, arma::vec maxBinom, std::vector<double> curr, std::vector<double> SigMarch, std::vector<std::vector<double>> prior,const int warmup=0,const double invTemp=1)
+Rcpp::List logisticRWMHcond(int N, int nbAdaptMarche, Rcpp::NumericVector y, Rcpp::NumericMatrix X, Rcpp::NumericVector maxBinom, std::vector<double> curr, std::vector<double> SigMarch, Rcpp::List prior,const int warmup=0,const double invTemp=1)
 {
+  // /!\ Why use Rcpp::NumericVector instead of arma::vector? because these implicit conversions do not work in packages (see ALTREP)
+  arma::vec ysafe = arma::vec(y.begin(), y.size(), false, true).eval();
+  arma::mat Xsafe = arma::mat(X.begin(), X.nrow(), X.ncol(), false, true).eval();
+  arma::vec maxBinomsafe = arma::vec(maxBinom.begin(), maxBinom.size(), false, true).eval();
+  std::vector<double> currsafe(curr.begin(),curr.end());
+  std::vector<double> SigMarchsafe(SigMarch.begin(),SigMarch.end());
+  
   auto lambdaPrior = [&prior](){
     std::vector<NormalPrior> tmp;
     tmp.reserve(prior.size());
-    for(int i=0;i<prior.size();++i) tmp.push_back(NormalPrior(prior[i][0],prior[i][1]));
+    for(int i=0;i<prior.size();++i){
+      NumericVector vecPrior = prior[i];
+      tmp.push_back(NormalPrior(vecPrior[0],vecPrior[1]));
+    }
     return tmp;
-  };
-  GlmRWMHcond<GlmLogit,NormalPrior> LOG(Data(y,X,maxBinom),AlgoMCMC(N,nbAdaptMarche,warmup,invTemp),curr,SigMarch,lambdaPrior());
+  }();
+  GlmRWMHcond<GlmLogit,NormalPrior> LOG(Data(ysafe,Xsafe,maxBinomsafe),AlgoRWMH(N,nbAdaptMarche,warmup,invTemp),currsafe,SigMarchsafe,lambdaPrior);
 
   RWMHCore(LOG);
 
-  // arma::mat Res(LOG.data.pSpat,LOG.algo.N);
-  // for(int k=0;k<LOG.data.pSpat;++k) Res.row(k) = arma::trans(LOG.regCoeff[k].res);
-  // arma::vec sigRes(LOG.data.pSpat);
-  // for(int k=0;k<LOG.data.pSpat;++k) sigRes(k) = LOG.regCoeff[k].sig;
   return Rcpp::List::create(Rcpp::Named("coeff") = [&LOG](){
                               arma::vec tmp(LOG.regCoeff.size());
                               for(int i=0;i<LOG.regCoeff.size();++i) tmp[i] = LOG.regCoeff[i].curr;
@@ -67,12 +73,17 @@ Rcpp::List logisticRWMHcond(int N, int nbAdaptMarche, arma::vec y, arma::mat X, 
 //' @param invTemp a value to temper the likelihood
 //' @return a list that includes a matrix of each coefficient posterior sample, the adapted covariance matrix for the Gaussian proposal distribution and some values to compute WAIC
 // [[Rcpp::export(.logisticRWMHjoint)]]
-Rcpp::List logisticRWMHjoint(int N, int nbAdaptMarche, arma::vec y, arma::mat X, arma::vec maxBinom, arma::vec curr, arma::mat SigMarch, std::vector<arma::vec> prior,const int warmup=0,const double invTemp=1)
+Rcpp::List logisticRWMHjoint(int N, int nbAdaptMarche, Rcpp::NumericVector y, Rcpp::NumericMatrix X, Rcpp::NumericVector maxBinom, Rcpp::NumericVector curr, Rcpp::NumericMatrix SigMarch, Rcpp::List prior,const int warmup=0,const double invTemp=1)
 {
-  auto lambdaPrior = [&prior,&X](){
-    return MultivariateNormalPrior(prior[0],arma::diagmat(prior[1]));
-  };
-  GlmRWMHjoint<GlmLogit,MultivariateNormalPrior> LOG(Data(y,X,maxBinom),AlgoMCMC(N,nbAdaptMarche,warmup,invTemp),curr,SigMarch,lambdaPrior());
+  // /!\ Why use Rcpp::NumericVector instead of arma::vector? because these implicit conversions do not work in packages (see ALTREP)
+  arma::vec ysafe = arma::vec(y.begin(), y.size(), false, true).eval();
+  arma::mat Xsafe = arma::mat(X.begin(), X.nrow(), X.ncol(), false, true).eval();
+  arma::vec maxBinomsafe = arma::vec(maxBinom.begin(), maxBinom.size(), false, true).eval();
+  arma::vec currsafe = arma::vec(curr.begin(), curr.size(), false, true).eval();
+  arma::mat SigMarchsafe = arma::mat(SigMarch.begin(), SigMarch.nrow(), SigMarch.ncol(), false, true).eval();
+  arma::vec prior0 = Rcpp::as<arma::vec>(prior[0]);
+  arma::mat prior1 = Rcpp::as<arma::mat>(prior[1]);
+  GlmRWMHjoint<GlmLogit,MultivariateNormalPrior> LOG(Data(ysafe,Xsafe,maxBinomsafe),AlgoRWMH(N,nbAdaptMarche,warmup,invTemp),currsafe,SigMarchsafe,MultivariateNormalPrior(prior0,prior1));
 
   RWMHCore(LOG);
 
@@ -87,4 +98,6 @@ Rcpp::List logisticRWMHjoint(int N, int nbAdaptMarche, arma::vec y, arma::mat X,
 const arma::vec likelihoodIndiv(const arma::vec& XprodCour,const arma::vec& y,const arma::vec& maxBinom,const arma::vec& tempCour){
   return XprodCour%y - maxBinom % tempCour;
 }
+
+
 
